@@ -1,0 +1,140 @@
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+%
+% The purpose of this script is to calculate the orbit decay / re-entry time of a sat
+% using the  mean and +/- 2 sigma Schatten Predict Values.
+%
+% The user should set the spacecraft epcoh and drag.mass characteristics
+% as well as the desired decay altitude (by default 105 km). Note the propagator 
+% will only caluclate to 100 km or greater without erroring for the 
+% current propagator implemented.
+%
+%
+% Copyright 2023, Frontier Astrodynamics, LLC.
+%
+% Licensed under the Apache License, Version 2.0 (the "License")
+%
+% Unless required by applicable law or agreed to in writing, software
+% distributed under the License is distributed on an "AS IS" BASIS,
+% WITHOUT WARRANTIES OR CONDITIONS OF ANY KIND, either express or implied.
+% See the License for the specific language governing permissions and
+% limitations under the License.
+%
+% %%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+Create Variable decay_alt
+decay_alt = 105
+
+Create Spacecraft SC1 RefSat
+SC1.DateFormat = UTCGregorian
+SC1.Epoch = '01 Jan 2025 00:00:00.000'
+SC1.SMA = 6800.0
+SC1.INC = 51.6
+SC1.ECC = 0.00001
+SC1.DryMass = 100
+SC1.DragArea = 1.0
+SC1.Cd = 2.2
+SC1.SRPArea = 1.0
+SC1.Cr = 1.8
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+
+Create ForceModel FM1
+FM1.CentralBody = Earth
+FM1.PrimaryBodies = {Earth}
+FM1.GravityField.Earth.Degree = 2
+FM1.GravityField.Earth.Order  = 2
+FM1.Drag.AtmosphereModel = JacchiaRoberts
+FM1.Drag.PredictedWeatherSource = 'SchattenFile'
+FM1.Drag.SchattenFile = 'SchattenPredict.txt'
+FM1.Drag.SchattenErrorModel = 'Nominal'
+FM1.SchattenTimingModel = 'NominalCycle'
+
+Create ForceModel FM2
+FM2.CentralBody = Earth
+FM2.PrimaryBodies = {Earth}
+FM2.GravityField.Earth.Degree = 2
+FM2.GravityField.Earth.Order  = 2
+FM2.Drag.AtmosphereModel = JacchiaRoberts
+FM2.Drag.PredictedWeatherSource = 'SchattenFile'
+FM2.Drag.SchattenFile = 'SchattenPredict.txt'
+FM2.Drag.SchattenErrorModel = 'PlusTwoSigma'
+FM2.SchattenTimingModel = 'NominalCycle'
+
+Create ForceModel FM3
+FM3.CentralBody = Earth
+FM3.PrimaryBodies = {Earth}
+FM3.GravityField.Earth.Degree = 2
+FM3.GravityField.Earth.Order  = 2
+FM3.Drag.AtmosphereModel = JacchiaRoberts
+FM3.Drag.PredictedWeatherSource = 'SchattenFile'
+FM3.Drag.SchattenFile = 'SchattenPredict.txt'
+FM3.Drag.SchattenErrorModel = 'MinusTwoSigma'
+FM3.SchattenTimingModel = 'NominalCycle'
+
+Create Propagator Prop1
+Prop1.FM              = FM1
+Prop1.Type            = PrinceDormand78
+Prop1.InitialStepSize = 60
+Prop1.Accuracy        = 1e-011
+Prop1.MinStep         = 0
+Prop1.MaxStep         = 864000
+Prop1.MaxStepAttempts = 50
+Prop1.StopIfAccuracyIsViolated = true
+
+Create Propagator Prop2
+Prop2.FM              = FM2
+Prop2.Type            = PrinceDormand78
+Prop2.InitialStepSize = 60
+Prop2.Accuracy        = 1e-011
+Prop2.MinStep         = 0
+Prop2.MaxStep         = 864000
+Prop2.MaxStepAttempts = 50
+Prop2.StopIfAccuracyIsViolated = true
+
+Create Propagator Prop3
+Prop3.FM              = FM3
+Prop3.Type            = PrinceDormand78
+Prop3.InitialStepSize = 60
+Prop3.Accuracy        = 1e-011
+Prop3.MinStep         = 0
+Prop3.MaxStep         = 864000
+Prop3.MaxStepAttempts = 50
+Prop3.StopIfAccuracyIsViolated = true
+
+Create Variable BC TimeToEnter
+Create String String1
+
+%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%%
+BeginMissionSequence
+
+
+BC = SC1.Cd*SC1.DragArea/SC1.DryMass
+String1 = 'The Ballisitic Coefficient for the debris object is = '
+Write String1
+Write BC
+
+RefSat = SC1
+
+Propagate Prop1(SC1) {SC1.Earth.Altitude = decay_alt}
+TimeToEnter = SC1.ElapsedSecs/86400
+String1 = 'The nominal re-entry time in days is = '
+Write String1
+Write TimeToEnter
+SC1 = RefSat
+
+Propagate Prop2(SC1) {SC1.Earth.Altitude = decay_alt}
+TimeToEnter = SC1.ElapsedSecs/86400
+String1 = 'The minus 2-sigma re-entry time in days is = '
+Write String1
+Write TimeToEnter
+SC1 = RefSat
+
+Propagate Prop3(SC1) {SC1.Earth.Altitude = decay_alt}
+TimeToEnter = SC1.ElapsedSecs/86400
+String1 = 'The plus 2-sigma re-entry time in days is = '
+Write String1
+Write TimeToEnter
+SC1 = RefSat
+
+
+
+
